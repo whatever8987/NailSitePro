@@ -63,17 +63,21 @@ export default function SampleSite() {
     enabled: !!salon?.templateId,
   });
 
-  // Load Google Maps API
+  // Load Google Maps API - commented out until we have a valid API key
+  /*
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.GOOGLE_MAPS_API_KEY || ''}&libraries=places`;
     script.async = true;
     document.body.appendChild(script);
     
     return () => {
-      document.body.removeChild(script);
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
     };
   }, []);
+  */
 
   if (isLoadingSalon || isLoadingTemplate) {
     return (

@@ -46,12 +46,12 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link href="/register">
+                <Link to="/register">
                   <Button size="lg" className="w-full sm:w-auto shadow-lg hover:shadow-primary/30 transition-all gradient-bg">
                     Get started <ChevronRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
-                <Link href="/demo/glamnails-miami">
+                <Link to="/demo/glamnails-miami">
                   <Button size="lg" variant="outline" className="w-full sm:w-auto border-primary/20 hover:border-primary/40">
                     View demo
                   </Button>
@@ -332,7 +332,7 @@ export default function LandingPage() {
                   Get started for free
                 </Button>
               </Link>
-              <Link href="/demo/glamnails-miami">
+              <Link to="/demo/glamnails-miami">
                 <Button 
                   size="lg" 
                   variant="outline" 

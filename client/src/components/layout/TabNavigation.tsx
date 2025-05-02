@@ -18,23 +18,23 @@ export function TabNavigation({ tabs, activeTab }: TabNavigationProps) {
   };
 
   return (
-    <div className="border-b border-gray-200">
-      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+    <div className="border-b border-slate-200 dark:border-slate-800 mb-6">
+      <div className="overflow-x-auto flex-nowrap flex -mb-px">
         {tabs.map((tab) => (
           <Link
             key={tab.name}
             href={tab.href}
             className={`${
               isActive(tab.href)
-                ? "border-primary text-primary"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            } px-1 py-4 border-b-2 font-medium text-sm`}
+                ? "text-primary border-primary font-semibold relative after:content-[''] after:absolute after:left-0 after:right-0 after:-bottom-px after:h-[3px] after:rounded-t-full after:bg-gradient-to-r after:from-primary after:to-secondary"
+                : "border-transparent text-muted-foreground hover:text-foreground hover:border-slate-300 dark:hover:border-slate-600"
+            } whitespace-nowrap px-4 py-3 border-b-2 font-medium text-sm flex items-center transition-colors`}
             aria-current={isActive(tab.href) ? "page" : undefined}
           >
             {tab.name}
           </Link>
         ))}
-      </nav>
+      </div>
     </div>
   );
 }

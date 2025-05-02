@@ -83,11 +83,15 @@ export class MemStorage implements IStorage {
     this.salons = new Map();
     this.templates = new Map();
     this.subscriptionPlans = new Map();
+    this.blogPosts = new Map();
+    this.blogComments = new Map();
     
     this.userIdCounter = 1;
     this.salonIdCounter = 1;
     this.templateIdCounter = 1;
     this.subscriptionPlanIdCounter = 1;
+    this.blogPostIdCounter = 1;
+    this.blogCommentIdCounter = 1;
     
     this.statsData = {
       id: 1,
@@ -248,6 +252,200 @@ export class MemStorage implements IStorage {
     return plan;
   }
   
+  // Blog post operations
+  async getBlogPost(id: number): Promise<BlogPost | undefined> {
+    return this.blogPosts.get(id);
+  }
+  
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+    return Array.from(this.blogPosts.values()).find(
+      (post) => post.slug === slug
+    );
+  }
+  
+  async getBlogPosts(options?: { 
+    limit?: number, 
+    offset?: number, 
+    category?: string, 
+    featured?: boolean, 
+    published?: boolean 
+  }): Promise<BlogPost[]> {
+    let posts = Array.from(this.blogPosts.values());
+    
+    // Apply filters
+    if (options?.category) {
+      posts = posts.filter(post => post.category === options.category);
+    }
+    
+    if (options?.featured !== undefined) {
+      posts = posts.filter(post => post.featured === options.featured);
+    }
+    
+    if (options?.published !== undefined) {
+      posts = posts.filter(post => post.published === options.published);
+    }
+    
+    // Sort by creation date descending
+    posts.sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+      const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    // Apply pagination
+    if (options?.offset !== undefined && options?.limit !== undefined) {
+      posts = posts.slice(options.offset, options.offset + options.limit);
+    } else if (options?.limit !== undefined) {
+      posts = posts.slice(0, options.limit);
+    }
+    
+    return posts;
+  }
+  
+  async createBlogPost(insertPost: InsertBlogPost): Promise<BlogPost> {
+    const id = this.blogPostIdCounter++;
+    
+    // Generate slug from title
+    const slug = insertPost.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric with hyphens
+      .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+    
+    // Process tags if they come as a string
+    let tags: string[] = [];
+    if (typeof insertPost.tags === 'string') {
+      tags = insertPost.tags.split(',').map(tag => tag.trim());
+    } else if (Array.isArray(insertPost.tags)) {
+      tags = insertPost.tags;
+    }
+    
+    const uniqueSlug = await this.ensureUniqueSlug(slug);
+    
+    const post: BlogPost = {
+      id,
+      title: insertPost.title,
+      slug: uniqueSlug,
+      content: insertPost.content,
+      excerpt: insertPost.excerpt || null,
+      coverImage: insertPost.coverImage || null,
+      authorId: insertPost.authorId,
+      category: insertPost.category || 'other',
+      tags: tags,
+      published: insertPost.published || false,
+      featured: insertPost.featured || false,
+      viewCount: 0,
+      createdAt: new Date(),
+      updatedAt: null
+    };
+    
+    this.blogPosts.set(id, post);
+    return post;
+  }
+  
+  private async ensureUniqueSlug(baseSlug: string): Promise<string> {
+    let slug = baseSlug;
+    let counter = 1;
+    
+    while (await this.getBlogPostBySlug(slug)) {
+      slug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    return slug;
+  }
+  
+  async updateBlogPost(id: number, updates: Partial<BlogPost>): Promise<BlogPost> {
+    const post = await this.getBlogPost(id);
+    if (!post) {
+      throw new Error(`Blog post with id ${id} not found`);
+    }
+    
+    // If title is being updated, generate a new slug
+    let processedUpdates = { ...updates };
+    if (updates.title && !updates.slug) {
+      const newSlug = updates.title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+      
+      processedUpdates.slug = await this.ensureUniqueSlug(newSlug);
+    }
+    
+    const updatedPost = { ...post, ...processedUpdates, updatedAt: new Date() };
+    this.blogPosts.set(id, updatedPost);
+    return updatedPost;
+  }
+  
+  async deleteBlogPost(id: number): Promise<boolean> {
+    const post = await this.getBlogPost(id);
+    if (!post) {
+      return false;
+    }
+    
+    // Delete associated comments
+    const comments = await this.getBlogComments(id);
+    for (const comment of comments) {
+      await this.deleteBlogComment(comment.id);
+    }
+    
+    return this.blogPosts.delete(id);
+  }
+  
+  async incrementBlogPostViewCount(id: number): Promise<BlogPost> {
+    const post = await this.getBlogPost(id);
+    if (!post) {
+      throw new Error(`Blog post with id ${id} not found`);
+    }
+    
+    const updatedPost = { ...post, viewCount: post.viewCount + 1 };
+    this.blogPosts.set(id, updatedPost);
+    return updatedPost;
+  }
+  
+  // Blog comment operations
+  async getBlogComments(postId: number): Promise<BlogComment[]> {
+    return Array.from(this.blogComments.values())
+      .filter(comment => comment.postId === postId)
+      .sort((a, b) => {
+        const dateA = a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt);
+        const dateB = b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt);
+        return dateB.getTime() - dateA.getTime();
+      });
+  }
+  
+  async createBlogComment(insertComment: InsertBlogComment): Promise<BlogComment> {
+    const id = this.blogCommentIdCounter++;
+    
+    const comment: BlogComment = {
+      id,
+      postId: insertComment.postId,
+      name: insertComment.name,
+      email: insertComment.email,
+      content: insertComment.content,
+      approved: false,
+      userId: insertComment.userId || null,
+      createdAt: new Date()
+    };
+    
+    this.blogComments.set(id, comment);
+    return comment;
+  }
+  
+  async approveBlogComment(id: number): Promise<BlogComment> {
+    const comment = this.blogComments.get(id);
+    if (!comment) {
+      throw new Error(`Blog comment with id ${id} not found`);
+    }
+    
+    const approvedComment = { ...comment, approved: true };
+    this.blogComments.set(id, approvedComment);
+    return approvedComment;
+  }
+  
+  async deleteBlogComment(id: number): Promise<boolean> {
+    return this.blogComments.delete(id);
+  }
+  
   // Stats operations
   async getStats(): Promise<Stats> {
     return this.statsData;
@@ -336,6 +534,269 @@ export class MemStorage implements IStorage {
       });
     }
     
+    // Initial blog posts
+    if ((await this.getBlogPosts()).length === 0) {
+      const admin = await this.getUserByUsername("admin");
+      if (admin) {
+        // Blog post 1
+        await this.createBlogPost({
+          title: "10 Nail Art Trends to Try in 2025",
+          content: `
+# 10 Nail Art Trends to Try in 2025
+
+The world of nail art is constantly evolving, with new techniques, colors, and designs emerging each season. As we move into 2025, several exciting trends are taking center stage in salons across the globe. Whether you're a nail art enthusiast or just looking to try something new, here are the top trends to consider for your next manicure.
+
+## 1. Holographic Chrome
+
+Holographic chrome nails continue to dominate, offering a futuristic sheen that shifts colors in different lighting. The latest iterations combine chrome with matte finishes for a striking contrast.
+
+## 2. Biodegradable Glitter
+
+As sustainability becomes increasingly important, biodegradable glitter is replacing traditional microplastic versions. These eco-friendly alternatives still provide the sparkle clients love while being better for the environment.
+
+## 3. Minimalist Designs
+
+Clean, simple lines and geometric shapes on a neutral base create an elegant, sophisticated look that works for both casual and formal occasions.
+
+## 4. Japanese-Inspired Art
+
+Delicate cherry blossoms, koi fish, and wave patterns inspired by traditional Japanese art are becoming increasingly popular for those seeking detailed, narrative nail designs.
+
+## 5. Extended French Tips
+
+The classic French manicure is getting an update with colorful tips, wavy lines, and extended lengths that frame the natural nail in creative ways.
+
+## 6. Customized Nail Shapes
+
+From lipstick shapes to soft almond styles, customized nail shapes that complement a client's hand shape provide a personalized approach to nail art.
+
+## 7. Texture Play
+
+Combining smooth finishes with textured elements creates depth and visual interest, especially when using contrasting colors.
+
+## 8. Negative Space Designs
+
+Leaving portions of the natural nail visible creates contemporary designs that are both artistic and practical, as they grow out more gracefully.
+
+## 9. Nature-Inspired Elements
+
+Organic shapes, pressed flowers, and earth tones reflect a growing connection to nature in nail art design.
+
+## 10. Gel Extensions with Embedded Elements
+
+Thin, natural-looking gel extensions with embedded elements like dried flowers or tiny metallic pieces offer a three-dimensional effect that's both delicate and eye-catching.
+
+Remember to discuss these trends with your clients and adapt them to suit individual preferences and lifestyles. The best nail art combines current trends with personal style for a truly unique result.
+          `,
+          excerpt: "Discover the hottest nail art trends of 2025, from holographic chrome to sustainable biodegradable glitter and Japanese-inspired designs.",
+          authorId: admin.id,
+          category: "nail_art",
+          tags: ["trends", "nail art", "2025", "designs"],
+          published: true,
+          featured: true
+        });
+
+        // Blog post 2
+        await this.createBlogPost({
+          title: "How to Grow Your Salon Business with Social Media",
+          content: `
+# How to Grow Your Salon Business with Social Media
+
+In today's digital landscape, social media has become an essential tool for salon business growth. With the right strategy, platforms like Instagram, Facebook, TikTok, and Pinterest can dramatically increase your salon's visibility, attract new clients, and build lasting relationships with your existing customer base.
+
+## Showcase Your Best Work
+
+High-quality photos and videos of your salon's work are your most powerful marketing assets. Create a consistent photography style that highlights the artistry and precision of your services. Consider these tips:
+
+- Use natural lighting whenever possible
+- Capture before-and-after transformations
+- Show the process as well as the final result
+- Feature diverse clients and styles
+- Maintain consistent editing for brand recognition
+
+## Choose the Right Platforms
+
+Each social media platform serves a different purpose and audience:
+
+- **Instagram**: Perfect for visual content and reaching younger audiences
+- **Facebook**: Great for community building and targeting local customers
+- **TikTok**: Ideal for quick tutorials and trend-based content
+- **Pinterest**: Excellent for inspirational content that has a long shelf life
+
+Focus on mastering 2-3 platforms rather than spreading yourself too thin across all of them.
+
+## Create Valuable Content
+
+Beyond showcasing your work, provide content that adds value to your followers:
+
+- Quick tutorials for at-home maintenance
+- Product recommendations and reviews
+- Answers to common client questions
+- Behind-the-scenes glimpses of salon life
+- Staff spotlights to humanize your brand
+- Seasonal trend forecasts and inspiration
+
+## Leverage User-Generated Content
+
+Encourage clients to share their fresh salon looks by:
+
+- Creating an Instagram-worthy space in your salon
+- Offering small discounts for clients who post and tag your salon
+- Reposting client content (with permission)
+- Creating a unique salon hashtag for clients to use
+
+## Implement a Booking Call-to-Action
+
+Make it easy for followers to become clients:
+
+- Include booking links in your bio and stories
+- Add "Book Now" buttons to Facebook and Instagram business profiles
+- Respond promptly to booking inquiries through direct messages
+- Consider implementing a social media booking system
+
+## Build Community Engagement
+
+Foster a sense of community around your salon:
+
+- Respond to comments and messages promptly
+- Ask questions to encourage interaction
+- Run polls and requests for feedback
+- Feature client stories and testimonials
+- Collaborate with complementary local businesses
+
+## Analyze and Adapt
+
+Use analytics tools to refine your strategy:
+
+- Track which content generates the most engagement
+- Identify peak posting times for your audience
+- Monitor conversion rates from social to actual bookings
+- Adjust your content calendar based on performance data
+
+Remember, consistency is key to social media success. Create a content calendar, establish a regular posting schedule, and stick to it. With patience and persistence, social media can become your salon's most effective marketing channel.
+          `,
+          excerpt: "Learn effective strategies to leverage social media platforms for growing your salon business, attracting new clients, and building a strong online community.",
+          authorId: admin.id,
+          category: "marketing",
+          tags: ["social media", "marketing", "business growth", "salon tips"],
+          published: true,
+          featured: false
+        });
+
+        // Blog post 3
+        await this.createBlogPost({
+          title: "Essential Equipment for New Salon Owners",
+          content: `
+# Essential Equipment for New Salon Owners
+
+Opening a new nail salon is an exciting venture, but it requires careful planning and investment in quality equipment. Having the right tools not only enhances the client experience but also improves efficiency and service quality. Here's a comprehensive guide to the essential equipment every new salon owner should consider.
+
+## Salon Furniture
+
+### Reception Area
+- Reception desk with storage
+- Comfortable seating for waiting clients
+- Display shelving for retail products
+- Coffee table with current magazines
+- Water dispenser or refreshment station
+
+### Workstations
+- Manicure tables with built-in ventilation
+- Adjustable technician chairs with back support
+- Comfortable client chairs
+- Good task lighting at each station
+- Storage drawers or caddies for immediate supplies
+
+### Pedicure Area
+- Pedicure chairs with massage features
+- Foot spas with disposable liners or excellent cleaning systems
+- Adjustable technician stools
+- Privacy dividers if space allows
+
+## Nail Equipment and Tools
+
+### Basic Tools (multiple sets)
+- Cuticle nippers, pushers, and scissors
+- Nail clippers and files
+- Buffer blocks and nail brushes
+- Callus removers
+- Metal implements sterilizer
+
+### Electric Equipment
+- Professional nail drills with various bits
+- LED/UV lamps for gel curing
+- Electric file for acrylics and gels
+- Paraffin wax heaters
+- Hot towel warmers
+
+### Disposables
+- Quality nail files and buffers
+- Disposable liners for pedicure tubs
+- Toe separators
+- Cuticle sticks
+- Gauze and cotton pads
+- Toe and finger covers
+
+## Sanitation and Safety Equipment
+
+- Autoclave for sterilizing metal implements
+- UV sterilizer boxes for small tools
+- Hand sanitizing stations
+- First aid kit
+- HEPA air purification system
+- Ventilation system or source capture systems at each workstation
+- Proper storage for chemicals
+
+## Product Inventory
+
+- Base coats, top coats, and various polish colors
+- Gel polish system
+- Acrylic system (powders, liquids, primers)
+- Nail art supplies
+- Cuticle oils and lotions
+- Retail products for home care
+
+## Business Technology
+
+- Point of sale (POS) system with appointment scheduling
+- Computer or tablet for business management
+- Reliable WiFi
+- Security cameras
+- Music system for ambiance
+- Telephone system
+
+## Additional Considerations
+
+- Designated cleaning equipment and supplies
+- Proper chemical storage solutions
+- Comfortable, washable uniforms for staff
+- Clear signage for promotions and services
+- Adequate lighting throughout the salon
+
+## Investment Priorities
+
+If your budget is limited, prioritize equipment in this order:
+1. Safety and sanitation equipment (non-negotiable)
+2. Essential tools for your core services
+3. Comfortable workstations
+4. Business management technology
+5. Reception area furnishings
+6. Ambient and comfort features
+
+Remember that while it might be tempting to save money by purchasing inexpensive equipment, investing in quality items will serve your business better in the long run. Quality equipment lasts longer, performs better, and contributes to a more professional image for your salon.
+
+Also consider lease options for more expensive equipment if the initial investment is prohibitive. As your business grows, you can always upgrade or expand your equipment collection to accommodate new services and techniques.
+          `,
+          excerpt: "A comprehensive guide to essential equipment and supplies needed when opening a new nail salon, from furniture and tools to sanitation systems and business technology.",
+          authorId: admin.id,
+          category: "business_advice",
+          tags: ["equipment", "new salon", "startup", "business essentials"],
+          published: true,
+          featured: true
+        });
+      }
+    }
+
     // Initial sample salons
     if ((await this.getSalons()).length === 0) {
       await this.createSalon({

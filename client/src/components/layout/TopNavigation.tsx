@@ -29,9 +29,18 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
   const [location, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const handleLogout = () => {
-    // Implement logout logic here
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      // Clear any client-side cache or state
+      window.location.href = "/login"; // Hard redirect to ensure complete reset
+    } catch (error) {
+      console.error("Logout failed:", error);
+      navigate("/login");
+    }
   };
 
   const isActive = (path: string) => {
@@ -111,10 +120,10 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/profile">Profile</Link>
+                    <Link href="/account">Account</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/settings">Settings</Link>
+                    <Link href="/portal">My Website</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>

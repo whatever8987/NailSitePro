@@ -1,491 +1,565 @@
 import { TopNavigation } from "@/components/layout/TopNavigation";
-import { useQuery } from "@tanstack/react-query";
-import { User, Salon } from "@shared/schema";
-import { useLocation } from "wouter";
-import { useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { TabNavigation } from "@/components/layout/TabNavigation";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { User, Salon, Template } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Edit, Globe, Settings, CreditCard, Image, FileText } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Loader2, Save, EyeIcon, PanelLeft, Image, FileText, Clock, MapPin } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState, useEffect } from "react";
+
+const salonSchema = z.object({
+  name: z.string().min(2, {
+    message: "Salon name must be at least 2 characters.",
+  }),
+  address: z.string().min(5, {
+    message: "Please enter a valid address.",
+  }),
+  location: z.string().min(2, {
+    message: "Please enter a city or location.",
+  }),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }).optional().nullable(),
+  phoneNumber: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  services: z.array(z.string()).optional().nullable(),
+  openingHours: z.string().optional().nullable(),
+  templateId: z.number().optional().nullable(),
+});
 
 export default function ClientPortal() {
   const [, navigate] = useLocation();
+  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("general");
+  const [editMode, setEditMode] = useState(false);
+  
+  // Get template ID from URL if it exists
+  const searchParams = new URLSearchParams(window.location.search);
+  const templateIdParam = searchParams.get('template');
 
+  // Get user, salon, and templates data
   const { data: user, isLoading: isLoadingUser } = useQuery<User | null>({
     queryKey: ["/api/user/me"],
+    retry: false,
   });
 
-  const { data: salonData, isLoading: isLoadingSalon } = useQuery<Salon>({
+  const { data: salon, isLoading: isLoadingSalon } = useQuery<Salon | null>({
     queryKey: ["/api/user/salon"],
     enabled: !!user,
   });
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoadingUser && !user) {
-      navigate("/login");
-    }
-  }, [user, isLoadingUser, navigate]);
+  const { data: templates, isLoading: isLoadingTemplates } = useQuery<Template[]>({
+    queryKey: ["/api/templates"],
+    retry: false,
+  });
 
-  if (isLoadingUser) {
+  const salonForm = useForm<z.infer<typeof salonSchema>>({
+    resolver: zodResolver(salonSchema),
+    defaultValues: {
+      name: "",
+      address: "",
+      location: "",
+      email: "",
+      phoneNumber: "",
+      description: "",
+      services: [],
+      openingHours: "",
+      templateId: templateIdParam ? parseInt(templateIdParam) : null,
+    },
+  });
+
+  // Update form values when salon data is loaded
+  useEffect(() => {
+    if (salon) {
+      salonForm.reset({
+        name: salon.name,
+        address: salon.address,
+        location: salon.location,
+        email: salon.email,
+        phoneNumber: salon.phoneNumber,
+        description: salon.description || "",
+        services: salon.services || [],
+        openingHours: salon.openingHours || "",
+        templateId: salon.templateId,
+      });
+    }
+  }, [salon, salonForm]);
+
+  const createOrUpdateSalonMutation = useMutation({
+    mutationFn: async (data: z.infer<typeof salonSchema>) => {
+      const endpoint = salon ? `/api/salons/${salon.id}` : "/api/salons";
+      const method = salon ? "PATCH" : "POST";
+      const response = await apiRequest(method, endpoint, data);
+      return await response.json();
+    },
+    onSuccess: (data: Salon) => {
+      toast({
+        title: salon ? "Website updated" : "Website created",
+        description: salon 
+          ? "Your website has been updated successfully." 
+          : "Your website has been created successfully.",
+      });
+      queryClient.setQueryData(["/api/user/salon"], data);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/salon"] });
+      setEditMode(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: salon ? "Update failed" : "Creation failed",
+        description: error.message || "Failed to save website data.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const claimSalonMutation = useMutation({
+    mutationFn: async (salonId: number) => {
+      const response = await apiRequest("POST", `/api/salons/${salonId}/claim`, {});
+      return await response.json();
+    },
+    onSuccess: (data: Salon) => {
+      toast({
+        title: "Website claimed",
+        description: "You have successfully claimed this website.",
+      });
+      queryClient.setQueryData(["/api/user/salon"], data);
+      queryClient.invalidateQueries({ queryKey: ["/api/user/salon"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Claim failed",
+        description: error.message || "Failed to claim website.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: z.infer<typeof salonSchema>) => {
+    createOrUpdateSalonMutation.mutate(data);
+  };
+
+  const handleClaimSalon = () => {
+    if (salon && salon.id) {
+      claimSalonMutation.mutate(salon.id);
+    }
+  };
+
+  const addService = () => {
+    const currentServices = salonForm.getValues().services || [];
+    salonForm.setValue("services", [...currentServices, "New Service - $0"]);
+  };
+
+  const removeService = (index: number) => {
+    const currentServices = salonForm.getValues().services || [];
+    salonForm.setValue(
+      "services", 
+      currentServices.filter((_, i) => i !== index)
+    );
+  };
+
+  const handleUpdateService = (index: number, value: string) => {
+    const currentServices = salonForm.getValues().services || [];
+    const newServices = [...currentServices];
+    newServices[index] = value;
+    salonForm.setValue("services", newServices);
+  };
+
+  const handlePreviewWebsite = () => {
+    if (salon) {
+      window.open(`/demo/${salon.sampleUrl}`, '_blank');
+    } else {
+      toast({
+        title: "Preview unavailable",
+        description: "Save your website first to preview it.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // If loading, show loading spinner
+  if (isLoadingUser || isLoadingSalon || isLoadingTemplates) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // If user is not authenticated, don't render the page
+  // Redirect if not logged in
   if (!user) {
+    navigate("/login?redirect=/portal");
     return null;
   }
+
+  // Set up tabs for portal
+  const portalTabs = [
+    { name: "My Website", href: "/portal" },
+    { name: "Dashboard", href: "/dashboard" },
+    { name: "Subscription", href: "/subscribe" },
+    { name: "Account", href: "/account" },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
       <TopNavigation user={user} isLoggedIn={true} />
-
+      
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Salon Portal</h1>
+        <div className="mb-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Website Management</h1>
+            <p className="mt-2 text-gray-600">
+              {salon ? "Edit your website content and settings" : "Set up your salon website"}
+            </p>
+          </div>
+          <div className="flex space-x-3">
+            <Button 
+              variant="outline" 
+              onClick={handlePreviewWebsite}
+              disabled={!salon}
+            >
+              <EyeIcon className="mr-2 h-4 w-4" />
+              Preview Website
+            </Button>
+            {salon && !editMode ? (
+              <Button onClick={() => setEditMode(true)}>
+                Edit Website
+              </Button>
+            ) : null}
+          </div>
+        </div>
 
-        <Tabs defaultValue="dashboard">
-          <TabsList className="mb-6">
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="content">Website Content</TabsTrigger>
-            <TabsTrigger value="subscription">Subscription</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+        <TabNavigation tabs={portalTabs} activeTab="portal" />
 
-          <TabsContent value="dashboard">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="mt-6">
+          {/* If salon exists and not in edit mode, show the salon details */}
+          {salon && !editMode ? (
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Website Status</CardTitle>
-                  <CardDescription>Your website's current status</CardDescription>
+                  <CardTitle>{salon.name}</CardTitle>
+                  <CardDescription>{salon.location}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {isLoadingSalon ? (
-                    <Skeleton className="h-20 w-full" />
-                  ) : salonData ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center">
-                        <div className="h-3 w-3 rounded-full bg-green-500 mr-2"></div>
-                        <span className="font-medium">Active</span>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">Contact Information</h3>
+                      <div className="space-y-2">
+                        <p><strong>Email:</strong> {salon.email || "Not provided"}</p>
+                        <p><strong>Phone:</strong> {salon.phoneNumber || "Not provided"}</p>
+                        <p><strong>Address:</strong> {salon.address}</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500 mb-1">Your website URL:</p>
-                        <div className="flex items-center">
-                          <Globe className="h-4 w-4 text-primary mr-2" />
-                          <a 
-                            href={`/demo/${salonData.sampleUrl}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-primary hover:underline"
-                          >
-                            {salonData.sampleUrl}
-                          </a>
-                        </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-medium mb-2">Website Details</h3>
+                      <div className="space-y-2">
+                        <p><strong>Website URL:</strong> {window.location.origin}/demo/{salon.sampleUrl}</p>
+                        <p><strong>Template:</strong> {templates?.find(t => t.id === salon.templateId)?.name || "Custom"}</p>
+                        <p><strong>Status:</strong> <span className="text-green-600 font-medium">Active</span></p>
                       </div>
-                      <Button className="w-full">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Website
-                      </Button>
                     </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-gray-500 mb-4">You haven't claimed a website yet.</p>
-                      <Button>Claim Your Website</Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Subscription</CardTitle>
-                  <CardDescription>Your current plan</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {isLoadingSalon ? (
-                    <Skeleton className="h-20 w-full" />
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-semibold text-lg">Basic Plan</h3>
-                        <p className="text-2xl font-bold text-primary">$29<span className="text-sm text-gray-500 font-normal">/month</span></p>
-                        <p className="text-sm text-gray-500 mt-1">Next billing: June 15, 2023</p>
-                      </div>
-                      <Button className="w-full" variant="outline">
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Upgrade Plan
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                  <CardDescription>Manage your website</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <Button className="w-full justify-start" variant="outline">
-                      <Image className="h-4 w-4 mr-2" />
-                      Update Images
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Edit Services
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Site Settings
-                    </Button>
                   </div>
+
+                  {salon.description && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-2">About</h3>
+                      <p className="text-gray-700">{salon.description}</p>
+                    </div>
+                  )}
+
+                  {salon.services && salon.services.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-2">Services</h3>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {salon.services.map((service, idx) => (
+                          <li key={idx} className="text-gray-700">{service}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {salon.openingHours && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-2">Opening Hours</h3>
+                      <p className="text-gray-700 whitespace-pre-line">{salon.openingHours}</p>
+                    </div>
+                  )}
                 </CardContent>
+                <CardFooter>
+                  {!salon.claimed && (
+                    <Button onClick={handleClaimSalon}>
+                      Claim This Website
+                    </Button>
+                  )}
+                </CardFooter>
               </Card>
             </div>
-          </TabsContent>
+          ) : (
+            /* If no salon exists or in edit mode, show the form to create/edit salon */
+            <Form {...salonForm}>
+              <form onSubmit={salonForm.handleSubmit(onSubmit)} className="space-y-8">
+                <Tabs defaultValue="general" className="w-full">
+                  <TabsList className="mb-6">
+                    <TabsTrigger value="general" className="flex items-center">
+                      <PanelLeft className="mr-2 h-4 w-4" />
+                      General
+                    </TabsTrigger>
+                    <TabsTrigger value="content" className="flex items-center">
+                      <FileText className="mr-2 h-4 w-4" />
+                      Content
+                    </TabsTrigger>
+                    <TabsTrigger value="services" className="flex items-center">
+                      <Image className="mr-2 h-4 w-4" />
+                      Services
+                    </TabsTrigger>
+                    <TabsTrigger value="hours" className="flex items-center">
+                      <Clock className="mr-2 h-4 w-4" />
+                      Hours
+                    </TabsTrigger>
+                  </TabsList>
 
-          <TabsContent value="content">
-            <Card>
-              <CardHeader>
-                <CardTitle>Website Content</CardTitle>
-                <CardDescription>Update your website content</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-semibold mb-4">Basic Information</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Salon Name</label>
-                        <input 
-                          type="text" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={salonData?.name || ""}
-                          readOnly={isLoadingSalon}
+                  <TabsContent value="general" className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Business Information</CardTitle>
+                        <CardDescription>Basic information about your salon</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-6">
+                        <FormField
+                          control={salonForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Salon Name*</FormLabel>
+                              <FormControl>
+                                <Input placeholder="e.g. Glamour Nails & Spa" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                        <input 
-                          type="text" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={salonData?.location || ""}
-                          readOnly={isLoadingSalon}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-                        <input 
-                          type="text" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={salonData?.address || ""}
-                          readOnly={isLoadingSalon}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-semibold mb-4">Contact Information</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                        <input 
-                          type="text" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={salonData?.phoneNumber || ""}
-                          readOnly={isLoadingSalon}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input 
-                          type="email" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={salonData?.email || ""}
-                          readOnly={isLoadingSalon}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Business Hours</label>
-                        <input 
-                          type="text" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          placeholder="Mon-Sat: 9AM-7PM, Sun: 10AM-5PM"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="mt-6">
-                  <h3 className="font-semibold mb-4">Services</h3>
-                  <div className="border border-gray-300 rounded-md p-4">
-                    <div className="space-y-3">
-                      {isLoadingSalon ? (
-                        Array(3).fill(0).map((_, i) => (
-                          <Skeleton key={i} className="h-10 w-full" />
-                        ))
-                      ) : (
-                        (salonData?.services || ["Manicure", "Pedicure", "Gel Nails"]).map((service, idx) => (
-                          <div key={idx} className="flex items-center">
-                            <input 
-                              type="text" 
-                              className="flex-grow p-2 border border-gray-300 rounded-md mr-2" 
-                              value={service} 
-                            />
-                            <Button variant="ghost" size="sm" className="text-red-500">
-                              Remove
-                            </Button>
-                          </div>
-                        ))
-                      )}
-                      <Button variant="outline" size="sm" className="mt-2">
-                        Add Service
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField
+                            control={salonForm.control}
+                            name="address"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Address*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="123 Main St, Suite 101" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                <div className="mt-6 flex justify-end">
-                  <Button variant="outline" className="mr-2">
-                    Cancel
-                  </Button>
-                  <Button>
-                    Save Changes
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="subscription">
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Management</CardTitle>
-                <CardDescription>Manage your subscription plan</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="border border-primary rounded-lg p-6 bg-primary/5 relative">
-                    <div className="absolute top-0 right-0 bg-primary text-white px-3 py-1 text-xs font-semibold">
-                      Current Plan
-                    </div>
-                    <h3 className="text-xl font-bold">Basic</h3>
-                    <p className="text-3xl font-bold mt-2">$29<span className="text-sm font-normal">/mo</span></p>
-                    <ul className="mt-4 space-y-2">
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Custom subdomain</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Mobile-friendly design</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Basic content management</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Email support</span>
-                      </li>
-                    </ul>
-                  </div>
-
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-xl font-bold">Premium</h3>
-                    <p className="text-3xl font-bold mt-2">$49<span className="text-sm font-normal">/mo</span></p>
-                    <ul className="mt-4 space-y-2">
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>All Basic features</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Custom domain connection</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Online booking integration</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Priority support</span>
-                      </li>
-                    </ul>
-                    <Button className="w-full mt-4" onClick={() => navigate("/subscribe?plan=premium")}>
-                      Upgrade
-                    </Button>
-                  </div>
-
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h3 className="text-xl font-bold">Luxury</h3>
-                    <p className="text-3xl font-bold mt-2">$99<span className="text-sm font-normal">/mo</span></p>
-                    <ul className="mt-4 space-y-2">
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>All Premium features</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Custom design modifications</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>SEO optimization</span>
-                      </li>
-                      <li className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
-                        <span>Dedicated support manager</span>
-                      </li>
-                    </ul>
-                    <Button className="w-full mt-4" onClick={() => navigate("/subscribe?plan=luxury")}>
-                      Upgrade
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="mt-8 border-t pt-6">
-                  <h3 className="font-semibold mb-4">Billing Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Payment Method</p>
-                      <div className="flex items-center border border-gray-200 rounded-md p-3">
-                        <CreditCard className="h-5 w-5 text-gray-400 mr-3" />
-                        <div>
-                          <p className="font-medium">•••• •••• •••• 4242</p>
-                          <p className="text-sm text-gray-500">Expires 12/2025</p>
+                          <FormField
+                            control={salonForm.control}
+                            name="location"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>City*</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="Miami" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         </div>
-                        <Button variant="ghost" size="sm" className="ml-auto">
-                          Update
-                        </Button>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Billing Address</p>
-                      <div className="border border-gray-200 rounded-md p-3">
-                        <p className="font-medium">Jane Smith</p>
-                        <p className="text-sm text-gray-500">123 Main St, Suite 101</p>
-                        <p className="text-sm text-gray-500">Miami, FL 33101</p>
-                        <Button variant="ghost" size="sm" className="mt-2">
-                          Update
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Account Settings</CardTitle>
-                <CardDescription>Manage your account preferences</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <h3 className="font-semibold mb-4">Personal Information</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-                        <input 
-                          type="text" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={user?.username || ""}
-                          readOnly
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input 
-                          type="email" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={user?.email || ""}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                        <input 
-                          type="tel" 
-                          className="w-full p-2 border border-gray-300 rounded-md" 
-                          value={user?.phoneNumber || ""}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h3 className="font-semibold mb-4">Password</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                        <input type="password" className="w-full p-2 border border-gray-300 rounded-md" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                        <input type="password" className="w-full p-2 border border-gray-300 rounded-md" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                        <input type="password" className="w-full p-2 border border-gray-300 rounded-md" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <FormField
+                            control={salonForm.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="contact@yoursalon.com" {...field} value={field.value || ""} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
 
-                <div className="mt-6 border-t pt-6">
-                  <h3 className="font-semibold mb-4">Notification Preferences</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Email Notifications</p>
-                        <p className="text-sm text-gray-500">Receive emails about your account and website</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" checked />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">Marketing Communications</p>
-                        <p className="text-sm text-gray-500">Receive tips, updates, and offers about SalonSite</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" className="sr-only peer" />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
+                          <FormField
+                            control={salonForm.control}
+                            name="phoneNumber"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Phone Number</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="(123) 456-7890" {...field} value={field.value || ""} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                <div className="mt-6 flex justify-end">
-                  <Button variant="outline" className="mr-2">
-                    Cancel
+                        <FormField
+                          control={salonForm.control}
+                          name="templateId"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Website Template</FormLabel>
+                              <FormControl>
+                                <select 
+                                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                  {...field}
+                                  onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
+                                  value={field.value || ""}
+                                >
+                                  <option value="">Select a template</option>
+                                  {templates?.map((template) => (
+                                    <option key={template.id} value={template.id}>
+                                      {template.name} - {template.description}
+                                    </option>
+                                  ))}
+                                </select>
+                              </FormControl>
+                              <FormDescription>
+                                Choose a template for your salon website
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="content" className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Website Content</CardTitle>
+                        <CardDescription>Describe your salon and services</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FormField
+                          control={salonForm.control}
+                          name="description"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>About Your Salon</FormLabel>
+                              <FormControl>
+                                <Textarea 
+                                  placeholder="Describe your salon, specialties, and what makes you unique..." 
+                                  rows={6}
+                                  {...field} 
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                This content will appear on your website's homepage
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="services" className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Salon Services</CardTitle>
+                        <CardDescription>Add the services you offer with prices</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-4">
+                          {(salonForm.getValues().services || []).map((service, index) => (
+                            <div key={index} className="flex items-center gap-3">
+                              <Input 
+                                value={service}
+                                onChange={(e) => handleUpdateService(index, e.target.value)}
+                                placeholder="Service Name - $Price"
+                              />
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                type="button"
+                                onClick={() => removeService(index)}
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                          ))}
+                          <Button type="button" variant="outline" onClick={addService}>
+                            Add Service
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="hours" className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Business Hours</CardTitle>
+                        <CardDescription>Enter your salon's opening hours</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <FormField
+                          control={salonForm.control}
+                          name="openingHours"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Opening Hours</FormLabel>
+                              <FormControl>
+                                <Textarea
+                                  placeholder={`Monday: 9:00 AM - 7:00 PM\nTuesday: 9:00 AM - 7:00 PM\nWednesday: 9:00 AM - 7:00 PM\nThursday: 9:00 AM - 7:00 PM\nFriday: 9:00 AM - 8:00 PM\nSaturday: 9:00 AM - 6:00 PM\nSunday: Closed`}
+                                  rows={8}
+                                  {...field}
+                                  value={field.value || ""}
+                                />
+                              </FormControl>
+                              <FormDescription>
+                                Enter each day on a new line
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+
+                <div className="flex justify-end space-x-3">
+                  {editMode && (
+                    <Button variant="outline" type="button" onClick={() => setEditMode(false)}>
+                      Cancel
+                    </Button>
+                  )}
+                  <Button 
+                    type="submit" 
+                    disabled={createOrUpdateSalonMutation.isPending}
+                  >
+                    {createOrUpdateSalonMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="mr-2 h-4 w-4" />
+                    )}
+                    {salon ? "Update Website" : "Create Website"}
                   </Button>
-                  <Button>
-                    Save Changes
-                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </form>
+            </Form>
+          )}
+        </div>
       </main>
     </div>
   );

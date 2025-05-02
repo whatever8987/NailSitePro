@@ -56,7 +56,7 @@ export function Chatbot() {
     }
   }, [isOpen, isMinimized, messages]);
   
-  const handleSendMessage = async () => {
+  const handleSendMessage = () => {
     if (!inputValue.trim()) return;
     
     // Add user message
@@ -68,12 +68,14 @@ export function Chatbot() {
     };
     
     setMessages((prev) => [...prev, userMessage]);
+    
+    const currentInput = inputValue.trim();
     setInputValue("");
     setIsTyping(true);
     
     // Simulate bot response
     setTimeout(() => {
-      const botResponse = getBotResponse(inputValue.trim());
+      const botResponse = getBotResponse(currentInput);
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: botResponse,
@@ -155,17 +157,17 @@ export function Chatbot() {
       {/* Chat Window */}
       {isOpen && (
         <div className={cn(
-          "bg-background border border-border rounded-lg shadow-xl transition-all duration-300 overflow-hidden",
+          "bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-xl transition-all duration-300 overflow-hidden",
           isMinimized ? "w-72 h-16" : "w-80 sm:w-96 h-[32rem] max-h-[calc(100vh-6rem)]"
         )}>
           {/* Chat Header */}
-          <div className="bg-gradient-to-r from-primary to-secondary p-3 flex justify-between items-center">
+          <div className="bg-gradient-to-r from-purple-600 to-blue-500 p-3 flex justify-between items-center">
             <div className="flex items-center text-white">
               {isMinimized ? (
                 <div className="flex items-center cursor-pointer" onClick={expandChat}>
                   <Avatar className="h-8 w-8 mr-2 border-2 border-white/20">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary-foreground text-primary">
+                    <AvatarImage src="" alt="Bot" />
+                    <AvatarFallback className="bg-white text-purple-600">
                       <Bot className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
@@ -176,8 +178,8 @@ export function Chatbot() {
               ) : (
                 <>
                   <Avatar className="h-8 w-8 mr-2 border-2 border-white/20">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-primary-foreground text-primary">
+                    <AvatarImage src="" alt="Bot" />
+                    <AvatarFallback className="bg-white text-purple-600">
                       <Bot className="h-4 w-4" />
                     </AvatarFallback>
                   </Avatar>
@@ -213,7 +215,7 @@ export function Chatbot() {
           {!isMinimized && (
             <>
               {/* Chat Messages */}
-              <div className="p-4 overflow-y-auto h-[calc(100%-8rem)]">
+              <div className="p-4 overflow-y-auto h-[calc(100%-8rem)] bg-white dark:bg-gray-900">
                 <div className="space-y-4">
                   {messages.map((message) => (
                     <div 
@@ -225,7 +227,7 @@ export function Chatbot() {
                     >
                       {message.sender === "bot" && (
                         <Avatar className="h-8 w-8 mr-2 flex-shrink-0 mt-1">
-                          <AvatarFallback className="bg-primary text-primary-foreground">
+                          <AvatarFallback className="bg-purple-600 text-white">
                             <Bot className="h-4 w-4" />
                           </AvatarFallback>
                         </Avatar>
@@ -234,8 +236,8 @@ export function Chatbot() {
                         className={cn(
                           "max-w-[80%] rounded-lg px-4 py-2",
                           message.sender === "user"
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted"
+                            ? "bg-purple-600 text-white"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                         )}
                       >
                         <p className="text-sm">{message.content}</p>
@@ -245,7 +247,7 @@ export function Chatbot() {
                       </div>
                       {message.sender === "user" && (
                         <Avatar className="h-8 w-8 ml-2 flex-shrink-0 mt-1">
-                          <AvatarFallback className="bg-primary text-primary-foreground">
+                          <AvatarFallback className="bg-blue-500 text-white">
                             <User className="h-4 w-4" />
                           </AvatarFallback>
                         </Avatar>
@@ -256,15 +258,15 @@ export function Chatbot() {
                   {isTyping && (
                     <div className="flex items-center">
                       <Avatar className="h-8 w-8 mr-2 flex-shrink-0">
-                        <AvatarFallback className="bg-primary text-primary-foreground">
+                        <AvatarFallback className="bg-purple-600 text-white">
                           <Bot className="h-4 w-4" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className="bg-muted rounded-lg px-4 py-2">
+                      <div className="bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-2">
                         <div className="flex space-x-1">
-                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce"></div>
-                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce delay-75"></div>
-                          <div className="h-2 w-2 rounded-full bg-primary animate-bounce delay-150"></div>
+                          <div className="h-2 w-2 rounded-full bg-purple-600 animate-bounce"></div>
+                          <div className="h-2 w-2 rounded-full bg-purple-600 animate-bounce" style={{ animationDelay: "0.1s" }}></div>
+                          <div className="h-2 w-2 rounded-full bg-purple-600 animate-bounce" style={{ animationDelay: "0.2s" }}></div>
                         </div>
                       </div>
                     </div>
@@ -275,12 +277,12 @@ export function Chatbot() {
               </div>
               
               {/* Quick Questions */}
-              <div className="px-4 py-2 border-t border-border overflow-x-auto whitespace-nowrap hide-scrollbar">
+              <div className="px-4 py-2 border-t border-gray-200 dark:border-gray-800 overflow-x-auto whitespace-nowrap" style={{ msOverflowStyle: "none", scrollbarWidth: "none" }}>
                 <div className="flex space-x-2">
                   {commonQuestions.map((question, index) => (
                     <button
                       key={index}
-                      className="text-xs px-3 py-1.5 border border-border rounded-full hover:bg-muted whitespace-nowrap transition-colors"
+                      className="text-xs px-3 py-1.5 border border-gray-200 dark:border-gray-800 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 whitespace-nowrap transition-colors"
                       onClick={() => handleQuickQuestion(question)}
                     >
                       {question}
@@ -290,7 +292,7 @@ export function Chatbot() {
               </div>
               
               {/* Chat Input */}
-              <div className="p-3 border-t border-border">
+              <div className="p-3 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -308,7 +310,7 @@ export function Chatbot() {
                   <Button 
                     type="submit" 
                     size="icon" 
-                    className="gradient-bg border-0"
+                    className="bg-gradient-to-r from-purple-600 to-blue-500 border-0"
                     disabled={!inputValue.trim()}
                   >
                     <Send className="h-4 w-4 text-white" />

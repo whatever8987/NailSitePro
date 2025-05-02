@@ -20,6 +20,8 @@ declare module "express-session" {
 const SessionStore = MemoryStore(session);
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Register payment routes
+  app.use('/api/payments', paymentRouter);
   // Set up session middleware
   app.use(
     session({

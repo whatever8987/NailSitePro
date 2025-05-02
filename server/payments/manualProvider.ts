@@ -1,10 +1,11 @@
-import { PaymentProvider, paymentConfig } from './index';
+import { PaymentProvider } from './index';
 
 class ManualPaymentProvider implements PaymentProvider {
   private isEnabled: boolean;
 
   constructor() {
-    this.isEnabled = paymentConfig.manual.enabled;
+    // Manual payments are enabled by default but can be disabled with env var
+    this.isEnabled = process.env.ENABLE_MANUAL !== 'false';
   }
 
   public isConfigured(): boolean {

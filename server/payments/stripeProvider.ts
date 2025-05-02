@@ -1,12 +1,16 @@
 import Stripe from 'stripe';
-import { PaymentProvider, paymentConfig } from './index';
+import { PaymentProvider } from './index';
 
 class StripePaymentProvider implements PaymentProvider {
   private stripe: Stripe | null = null;
+  private isEnabled: boolean = false;
 
   constructor() {
-    if (paymentConfig.stripe.enabled && paymentConfig.stripe.apiKey) {
-      this.stripe = new Stripe(paymentConfig.stripe.apiKey, {
+    const apiKey = process.env.STRIPE_SECRET_KEY;
+    this.isEnabled = process.env.ENABLE_STRIPE === 'true';
+    
+    if (this.isEnabled && apiKey) {
+      this.stripe = new Stripe(apiKey, {
         apiVersion: '2023-10-16',
       });
     }

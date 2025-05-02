@@ -175,15 +175,65 @@ docker run -p 5000:5000 -e STRIPE_SECRET_KEY=sk_test_xxx -e VITE_STRIPE_PUBLIC_K
 - `POST /api/create-payment-intent` - Create a payment intent for Stripe
 - `POST /api/get-or-create-subscription` - Create or retrieve a subscription
 
-## Integrating with Stripe
+## Payment Processing
 
-To process payments, you need to:
+SalonSite supports multiple payment providers that can be enabled or disabled via environment variables:
 
-1. Create a Stripe account at https://stripe.com
-2. Get your API keys from the Stripe Dashboard
-3. Add the keys to your environment variables
-4. Test the payment flow using Stripe test cards
-5. For production, update to live Stripe keys
+### Available Payment Providers
+
+1. **Stripe**: Industry-standard payment processing
+2. **PayPal**: Alternative payment processing (integration ready)
+3. **Manual Payments**: Bank transfer or in-person payment options
+
+### Payment Configuration
+
+You can configure which payment providers are available in your `.env` file:
+
+```
+# Enable/disable payment providers
+ENABLE_STRIPE=true
+ENABLE_PAYPAL=false
+ENABLE_MANUAL=true
+
+# Set the default payment provider (must be one that's enabled)
+DEFAULT_PAYMENT_PROVIDER=stripe
+```
+
+### Integrating with Stripe
+
+To use Stripe for payments:
+
+1. Set `ENABLE_STRIPE=true` in your `.env` file
+2. Create a Stripe account at https://stripe.com
+3. Get your API keys from the Stripe Dashboard
+4. Add the keys to your environment variables:
+   ```
+   STRIPE_SECRET_KEY=sk_test_your_secret_key
+   VITE_STRIPE_PUBLIC_KEY=pk_test_your_public_key
+   ```
+5. Test the payment flow using Stripe test cards
+6. For production, update to live Stripe keys
+
+### Integrating with PayPal
+
+To use PayPal for payments:
+
+1. Set `ENABLE_PAYPAL=true` in your `.env` file
+2. Create a PayPal Developer account at https://developer.paypal.com
+3. Create an application to get your API credentials
+4. Add the keys to your environment variables:
+   ```
+   PAYPAL_API_KEY=your_paypal_api_key
+   VITE_PAYPAL_CLIENT_ID=your_paypal_client_id
+   ```
+
+### Using Manual Payments
+
+For manual payments (bank transfers, in-person payments):
+
+1. Set `ENABLE_MANUAL=true` in your `.env` file
+2. No additional API keys are required
+3. The system will generate reference numbers for tracking payments
 
 ## License
 

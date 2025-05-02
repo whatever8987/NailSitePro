@@ -1,12 +1,12 @@
-import { PaymentProvider, paymentConfig } from './index';
+import { PaymentProvider } from './index';
 
 class PayPalPaymentProvider implements PaymentProvider {
   private isEnabled: boolean;
   private apiKey: string | undefined;
 
   constructor() {
-    this.isEnabled = paymentConfig.paypal.enabled;
-    this.apiKey = paymentConfig.paypal.apiKey;
+    this.isEnabled = process.env.ENABLE_PAYPAL === 'true';
+    this.apiKey = process.env.PAYPAL_API_KEY;
   }
 
   public isConfigured(): boolean {

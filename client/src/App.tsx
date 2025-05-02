@@ -9,6 +9,7 @@ import Register from "@/pages/Register";
 import SampleSite from "@/pages/SampleSite";
 import ClientPortal from "@/pages/ClientPortal";
 import Subscribe from "@/pages/Subscribe";
+import Checkout from "@/pages/Checkout";
 import { useEffect } from "react";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
       <Route path="/demo/:salonName-:city" component={SampleSite} />
       <Route path="/portal" component={ClientPortal} />
       <Route path="/subscribe" component={Subscribe} />
+      <Route path="/checkout" component={Checkout} />
       <Route component={NotFound} />
     </Switch>
   );

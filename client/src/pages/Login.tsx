@@ -110,10 +110,8 @@ export default function Login() {
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               Or{" "}
-              <Link href="/register">
-                <a className="font-medium text-primary hover:underline">
-                  register for a new account
-                </a>
+              <Link href="/register" className="font-medium text-primary hover:underline">
+                register for a new account
               </Link>
             </p>
           </div>

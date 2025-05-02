@@ -63,6 +63,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Router />
+        <Chatbot />
       </TooltipProvider>
     </QueryClientProvider>
   );

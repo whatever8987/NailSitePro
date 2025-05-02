@@ -7,8 +7,7 @@ import { Loader2, Phone, Mail, MapPin, Clock, ArrowLeft, User, Calendar, Externa
 import { useState, useEffect } from "react";
 
 export default function SampleSite() {
-  const { salonName, city } = useParams();
-  const sampleUrl = `${salonName}-${city}`;
+  const { sampleUrl } = useParams();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [showAdminBar, setShowAdminBar] = useState(true);
@@ -17,11 +16,27 @@ export default function SampleSite() {
   const { data: salon, isLoading: isLoadingSalon } = useQuery<Salon>({
     queryKey: ["/api/salons/sample", sampleUrl],
     queryFn: async () => {
-      const response = await fetch(`/api/salons/sample/${sampleUrl}`);
-      if (!response.ok) {
+      try {
+        // First try to fetch from salon sample URL
+        const response = await fetch(`/api/salons/sample/${sampleUrl}`);
+        if (response.ok) {
+          return response.json();
+        }
+        
+        // If that fails and it looks like a template preview URL
+        if (sampleUrl.startsWith('sample-salon-')) {
+          const templateId = sampleUrl.replace('sample-salon-', '');
+          const previewResponse = await fetch(`/api/templates/${templateId}/preview`);
+          if (previewResponse.ok) {
+            return previewResponse.json();
+          }
+        }
+        
         throw new Error("Salon not found");
+      } catch (error) {
+        console.error("Error fetching salon:", error);
+        throw error;
       }
-      return response.json();
     },
     retry: false,
     onError: () => {
@@ -30,7 +45,7 @@ export default function SampleSite() {
         description: "The salon you're looking for doesn't exist.",
         variant: "destructive",
       });
-      navigate("/");
+      navigate("/templates");
     },
   });
 

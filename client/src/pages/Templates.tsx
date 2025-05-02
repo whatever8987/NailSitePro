@@ -44,9 +44,25 @@ export default function Templates() {
     });
   };
 
-  const handleTemplatePreview = (templateId: number) => {
-    // For now, just show a sample page preview
-    window.open(`/demo/sample-template-${templateId}`, '_blank');
+  const handleTemplatePreview = async (templateId: number) => {
+    try {
+      // Fetch the template preview data
+      const response = await fetch(`/api/templates/${templateId}/preview`);
+      if (!response.ok) {
+        throw new Error('Failed to load template preview');
+      }
+      
+      const salonPreview = await response.json();
+      
+      // Navigate to the sample site page with the preview data
+      window.open(`/demo/${salonPreview.sampleUrl}`, '_blank');
+    } catch (error) {
+      toast({
+        title: "Preview error",
+        description: "Could not load the template preview. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleContinue = () => {

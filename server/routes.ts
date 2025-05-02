@@ -1,12 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import Stripe from "stripe";
 import session from "express-session";
 import { z } from "zod";
 import { insertSalonSchema, insertUserSchema } from "@shared/schema";
 import MemoryStore from "memorystore";
 import bcrypt from "bcryptjs";
+import paymentRouter from './payments/routes';
+import { paymentConfig } from './payments';
 
 // Declare session types
 declare module "express-session" {
@@ -14,15 +15,6 @@ declare module "express-session" {
     userId: number;
   }
 }
-
-// Initialize Stripe
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn('Missing Stripe secret key. Stripe integration will not work properly.');
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
-  apiVersion: "2023-10-16",
-});
 
 // Create memory store for sessions
 const SessionStore = MemoryStore(session);

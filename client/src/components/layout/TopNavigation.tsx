@@ -51,7 +51,7 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
     { name: "Dashboard", href: "/" },
     { name: "Templates", href: "/templates" },
     { name: "Pricing", href: "/pricing" },
-    { name: "Help", href: "/help" },
+    { name: "Contact", href: "/contact" },
   ];
 
   return (

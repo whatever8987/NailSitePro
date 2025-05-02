@@ -16,6 +16,8 @@ import LandingPage from "@/pages/LandingPage";
 import Templates from "@/pages/Templates";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
+import Contact from "@/pages/Contact";
+import { Chatbot } from "@/components/common/Chatbot";
 import { useEffect } from "react";
 
 function Router() {
@@ -35,6 +37,7 @@ function Router() {
       <Route path="/demo/:sampleUrl" component={SampleSite} />
       <Route path="/pricing" component={Pricing} />
       <Route path="/templates" component={Templates} />
+      <Route path="/contact" component={Contact} />
       
       {/* Protected User Routes */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />

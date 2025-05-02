@@ -397,6 +397,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching template" });
     }
   });
+  
+  app.get("/api/templates/:id/preview", async (req, res) => {
+    try {
+      const templateId = parseInt(req.params.id);
+      const template = await storage.getTemplate(templateId);
+      
+      if (!template) {
+        return res.status(404).json({ message: "Template not found" });
+      }
+      
+      // Create a sample salon with the template for preview
+      const sampleSalon = {
+        id: 999,
+        name: "Sample Salon",
+        address: "123 Main Street",
+        location: "Sample City",
+        email: "contact@samplesalon.com",
+        phoneNumber: "(555) 123-4567",
+        description: "This is a preview of your salon website using the " + template.name + " template.",
+        services: [
+          "Classic Manicure - $35",
+          "Gel Pedicure - $45",
+          "Nail Extensions - $60",
+          "Nail Art - $20"
+        ],
+        openingHours: "Monday - Friday: 9:00 AM - 7:00 PM\nSaturday: 9:00 AM - 6:00 PM\nSunday: Closed",
+        sampleUrl: `sample-salon-${template.id}`,
+        ownerId: null,
+        templateId: template.id,
+        claimed: false,
+        claimedAt: null,
+        contactStatus: "notContacted"
+      };
+      
+      res.status(200).json(sampleSalon);
+    } catch (error) {
+      res.status(500).json({ message: "Error generating template preview" });
+    }
+  });
 
   // Subscription plan endpoints
   app.get("/api/subscription-plans", async (req, res) => {

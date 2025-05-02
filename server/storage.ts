@@ -150,7 +150,11 @@ export class MemStorage implements IStorage {
       ...insertSalon, 
       id, 
       claimed: false, 
-      contactStatus: "notContacted" 
+      claimedAt: null,
+      ownerId: null,
+      contactStatus: "notContacted",
+      description: insertSalon.description || null,
+      openingHours: insertSalon.openingHours || null
     };
     
     this.salons.set(id, salon);

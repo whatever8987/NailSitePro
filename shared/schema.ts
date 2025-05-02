@@ -35,6 +35,8 @@ export const salons = pgTable("salons", {
   contactStatus: text("contact_status", { enum: ["notContacted", "contacted", "interested", "subscribed"] }).default("notContacted"),
   sampleUrl: text("sample_url").notNull(),
   templateId: integer("template_id").references(() => templates.id),
+  description: text("description"),
+  openingHours: text("opening_hours"),
 });
 
 export const insertSalonSchema = createInsertSchema(salons).omit({

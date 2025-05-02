@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { PlusCircle, Menu, ChevronDown, Settings, LogOut, User as UserIcon } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { LanguageSwitcher } from "@/components/common/LanguageSwitcher";
 
 interface User {
   id: number;
@@ -28,6 +30,7 @@ interface TopNavigationProps {
 export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
   const [location, navigate] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { t } = useTranslation();
 
   const handleLogout = async () => {
     try {
@@ -48,10 +51,11 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
   };
 
   const navItems = [
-    { name: "Dashboard", href: "/" },
-    { name: "Templates", href: "/templates" },
-    { name: "Pricing", href: "/pricing" },
-    { name: "Contact", href: "/contact" },
+    { name: t("navigation.dashboard"), href: "/" },
+    { name: t("navigation.templates"), href: "/templates" },
+    { name: t("navigation.pricing"), href: "/pricing" },
+    { name: t("navigation.blog"), href: "/blog" },
+    { name: t("navigation.contact"), href: "/contact" },
   ];
 
   return (
@@ -94,6 +98,8 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center gap-2">
+            <LanguageSwitcher />
+            
             {isLoggedIn && user?.role === "admin" && (
               <Button
                 variant="outline"
@@ -103,7 +109,7 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
               >
                 <Link href="/salon/new">
                   <PlusCircle className="h-4 w-4" />
-                  New Salon
+                  {t("common.create")} Salon
                 </Link>
               </Button>
             )}

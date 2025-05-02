@@ -3,6 +3,8 @@ import {
   salons, type Salon, type InsertSalon,
   templates, type Template, type InsertTemplate,
   subscriptionPlans, type SubscriptionPlan, type InsertSubscriptionPlan,
+  blogPosts, type BlogPost, type InsertBlogPost,
+  blogComments, type BlogComment, type InsertBlogComment,
   stats, type Stats
 } from "@shared/schema";
 
@@ -36,6 +38,21 @@ export interface IStorage {
   getSubscriptionPlans(): Promise<SubscriptionPlan[]>;
   createSubscriptionPlan(plan: InsertSubscriptionPlan): Promise<SubscriptionPlan>;
   
+  // Blog operations
+  getBlogPost(id: number): Promise<BlogPost | undefined>;
+  getBlogPostBySlug(slug: string): Promise<BlogPost | undefined>;
+  getBlogPosts(options?: { limit?: number, offset?: number, category?: string, featured?: boolean, published?: boolean }): Promise<BlogPost[]>;
+  createBlogPost(post: InsertBlogPost): Promise<BlogPost>;
+  updateBlogPost(id: number, updates: Partial<BlogPost>): Promise<BlogPost>;
+  deleteBlogPost(id: number): Promise<boolean>;
+  incrementBlogPostViewCount(id: number): Promise<BlogPost>;
+  
+  // Blog comment operations
+  getBlogComments(postId: number): Promise<BlogComment[]>;
+  createBlogComment(comment: InsertBlogComment): Promise<BlogComment>;
+  approveBlogComment(id: number): Promise<BlogComment>;
+  deleteBlogComment(id: number): Promise<boolean>;
+  
   // Stats operations
   getStats(): Promise<Stats>;
   updateStats(updates: Partial<Stats>): Promise<Stats>;
@@ -50,12 +67,16 @@ export class MemStorage implements IStorage {
   private salons: Map<number, Salon>;
   private templates: Map<number, Template>;
   private subscriptionPlans: Map<number, SubscriptionPlan>;
+  private blogPosts: Map<number, BlogPost>;
+  private blogComments: Map<number, BlogComment>;
   private statsData: Stats;
   
   private userIdCounter: number;
   private salonIdCounter: number;
   private templateIdCounter: number;
   private subscriptionPlanIdCounter: number;
+  private blogPostIdCounter: number;
+  private blogCommentIdCounter: number;
   
   constructor() {
     this.users = new Map();

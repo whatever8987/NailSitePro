@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -84,6 +84,66 @@ export const stats = pgTable("stats", {
   pendingContacts: integer("pending_contacts").default(0),
 });
 
+// Blog category enum
+export const blogCategoryEnum = pgEnum("blog_category", [
+  "salon_tips",
+  "nail_art",
+  "business_advice",
+  "industry_trends",
+  "tutorials",
+  "marketing",
+  "customer_service",
+  "other",
+]);
+
+// Blog posts table
+export const blogPosts = pgTable("blog_posts", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  slug: text("slug").notNull().unique(),
+  content: text("content").notNull(),
+  excerpt: text("excerpt"),
+  coverImage: text("cover_image"),
+  authorId: integer("author_id").references(() => users.id).notNull(),
+  category: text("category", { 
+    enum: ["salon_tips", "nail_art", "business_advice", "industry_trends", "tutorials", "marketing", "customer_service", "other"]
+  }).default("other").notNull(),
+  tags: text("tags").array(),
+  published: boolean("published").default(false).notNull(),
+  featured: boolean("featured").default(false).notNull(),
+  viewCount: integer("view_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({
+  id: true,
+  slug: true,
+  createdAt: true,
+  updatedAt: true,
+  viewCount: true,
+}).extend({
+  tags: z.string().optional(),
+});
+
+// Blog comments table
+export const blogComments = pgTable("blog_comments", {
+  id: serial("id").primaryKey(),
+  postId: integer("post_id").references(() => blogPosts.id).notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  content: text("content").notNull(),
+  approved: boolean("approved").default(false).notNull(),
+  userId: integer("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBlogCommentSchema = createInsertSchema(blogComments).omit({
+  id: true,
+  approved: true,
+  createdAt: true,
+});
+
 // Types export
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -98,3 +158,9 @@ export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
 export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
 
 export type Stats = typeof stats.$inferSelect;
+
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+
+export type BlogComment = typeof blogComments.$inferSelect;
+export type InsertBlogComment = z.infer<typeof insertBlogCommentSchema>;

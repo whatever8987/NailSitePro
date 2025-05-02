@@ -502,6 +502,46 @@ export class MemStorage implements IStorage {
         features: ["Warm colors", "Approachable layout", "Casual typography"],
         isMobileOptimized: true
       });
+      
+      await this.createTemplate({
+        name: "Minimalist",
+        description: "Clean & Simple design focusing on content and usability.",
+        previewImageUrl: "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+        features: ["Minimal design elements", "Clean white space", "Focus on typography", "Fast loading"],
+        isMobileOptimized: true
+      });
+      
+      await this.createTemplate({
+        name: "Artistic",
+        description: "Creative & Unique design for artistic salons.",
+        previewImageUrl: "https://images.unsplash.com/photo-1617897903246-719242758050?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+        features: ["Artistic elements", "Creative layouts", "Unique typography", "Visual focus"],
+        isMobileOptimized: true
+      });
+      
+      await this.createTemplate({
+        name: "Vibrant",
+        description: "Colorful & Energetic design to showcase salon personality.",
+        previewImageUrl: "https://images.unsplash.com/photo-1612837017391-4b6b7b0c3b76?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+        features: ["Vibrant color palette", "Dynamic elements", "Energetic layout", "Bold imagery"],
+        isMobileOptimized: true
+      });
+      
+      await this.createTemplate({
+        name: "Dark Mode",
+        description: "Sleek & Modern dark-themed design for a contemporary feel.",
+        previewImageUrl: "https://images.unsplash.com/photo-1608501821300-4f99e58bba77?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+        features: ["Dark color scheme", "High contrast", "Glowing accents", "Modern feel"],
+        isMobileOptimized: true
+      });
+      
+      await this.createTemplate({
+        name: "Natural",
+        description: "Earthy & Organic design ideal for eco-friendly salons.",
+        previewImageUrl: "https://images.unsplash.com/photo-1605714044579-581d3bdb5074?ixlib=rb-1.2.1&auto=format&fit=crop&w=600&q=80",
+        features: ["Natural color palette", "Organic shapes", "Sustainability focus", "Earthy elements"],
+        isMobileOptimized: true
+      });
     }
     
     // Create subscription plans

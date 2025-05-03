@@ -17,8 +17,8 @@ import Templates from "@/pages/Templates";
 import Pricing from "@/pages/Pricing";
 import Account from "@/pages/Account";
 import Contact from "@/pages/Contact";
-import Blog from "@/pages/Blog";
-import BlogPost from "@/pages/BlogPost";
+//import Blog from "@/pages/Blog";
+//import BlogPost from "@/pages/BlogPost";
 import { Chatbot } from "@/components/common/Chatbot";
 import { useEffect } from "react";
 
@@ -40,8 +40,7 @@ function Router() {
       <Route path="/pricing" component={Pricing} />
       <Route path="/templates" component={Templates} />
       <Route path="/contact" component={Contact} />
-      <Route path="/blog" component={Blog} />
-      <Route path="/blog/:slug" component={BlogPost} />
+     
       
       {/* Protected User Routes */}
       <ProtectedRoute path="/dashboard" component={Dashboard} />

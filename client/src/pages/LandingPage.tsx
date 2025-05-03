@@ -189,7 +189,7 @@ export default function LandingPage() {
               <div className="p-8">
                 <h3 className="text-2xl font-bold mb-2">Basic</h3>
                 <div className="flex items-baseline mb-6">
-                  <span className="text-4xl font-bold">$29</span>
+                  <span className="text-4xl font-bold">$79</span>
                   <span className="text-muted-foreground ml-2">/month</span>
                 </div>
                 <p className="text-muted-foreground text-sm mb-6">
@@ -232,7 +232,7 @@ export default function LandingPage() {
               <div className="p-8 pt-12">
                 <h3 className="text-2xl font-bold mb-2">Premium</h3>
                 <div className="flex items-baseline mb-6">
-                  <span className="text-4xl font-bold">$49</span>
+                  <span className="text-4xl font-bold">$149</span>
                   <span className="text-muted-foreground ml-2">/month</span>
                 </div>
                 <p className="text-muted-foreground text-sm mb-6">
@@ -270,7 +270,7 @@ export default function LandingPage() {
               <div className="p-8">
                 <h3 className="text-2xl font-bold mb-2">Luxury</h3>
                 <div className="flex items-baseline mb-6">
-                  <span className="text-4xl font-bold">$99</span>
+                  <span className="text-4xl font-bold">$239</span>
                   <span className="text-muted-foreground ml-2">/month</span>
                 </div>
                 <p className="text-muted-foreground text-sm mb-6">
@@ -335,7 +335,6 @@ export default function LandingPage() {
               <Link to="/demo/glamnails-miami">
                 <Button 
                   size="lg" 
-                  variant="outline" 
                   className="px-8 rounded-full border-white text-white hover:bg-white/10"
                 >
                   View demo site

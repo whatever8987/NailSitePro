@@ -78,7 +78,7 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
                   <path d="M21 12c0 1.2-4 6-9 6s-9-4.8-9-6c0-1.2 4-6 9-6s9 4.8 9 6z" />
                   <circle cx="12" cy="12" r="3" />
                 </svg>
-                <span className="ml-2 font-bold text-xl gradient-text">SalonSite</span>
+                <span className="ml-2 font-bold text-xl gradient-text">Pussco</span>
               </Link>
             </div>
             <div className="hidden sm:ml-8 sm:flex sm:space-x-2">
@@ -205,7 +205,7 @@ export function TopNavigation({ user, isLoggedIn }: TopNavigationProps) {
                         <path d="M21 12c0 1.2-4 6-9 6s-9-4.8-9-6c0-1.2 4-6 9-6s9 4.8 9 6z" />
                         <circle cx="12" cy="12" r="3" />
                       </svg>
-                      <span className="ml-2 font-bold text-xl gradient-text">SalonSite</span>
+                      <span className="ml-2 font-bold text-xl gradient-text">Pussco</span>
                     </Link>
                   </div>
                   

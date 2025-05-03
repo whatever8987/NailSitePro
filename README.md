@@ -1,3 +1,4 @@
+...
 # SalonSite - Nail Salon Website Generator
 
 SalonSite is a platform for generating and managing professional nail salon websites with a subscription-based hosting model and Stripe payment integration. The platform enables creating sample websites for salons that can be customized and claimed by salon owners.
